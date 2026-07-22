@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Projekt · {{ app_name }}{% endblock %}
+
+{% block content %}
+
+<section class="wrap hero">
+  <div>
+    <span class="eyebrow">Privat AI-byggstudio</span>
+    <h1>Från idé till live webbapp.</h1>
+    <p>
+      Beskriv vad du vill ha, generera hela projektet, finslipa i flera steg,
+      jämför revisioner, kvalitetskontrollera och publicera till GitHub,
+      Render eller Vercel.
+    </p>
+
+    <div class="hero-badges">
+      <span>AI-generering</span>
+      <span>Revisioner</span>
+      <span>Diff</span>
+      <span>Preflight</span>
+      <span>GitHub</span>
+      <span>Deploy</span>
+    </div>
+  </div>
+
+  <div class="hero-actions">
+    <a class="primary" href="/projects/new">+ Nytt projekt</a>
+    <a class="secondary" href="/integrations">Kontrollera integrationer</a>
+  </div>
+</section>
+
+{% if not ai_ready %}
+<section class="wrap alert warning">
+  <strong>AI-nyckel saknas.</strong>
+  Lägg <code>OPENAI_API_KEY</code> som servermiljövariabel.
+</section>
+{% endif %}
+
+<section class="wrap readiness-strip">
+  <div class="{{ 'ready' if ai_ready else 'not-ready' }}">
+    <strong>AI</strong>
+    <span>{{ 'Klar' if ai_ready else 'Saknas' }}</span>
+  </div>
+
+  <div class="{{ 'ready' if integrations.github_ready else 'not-ready' }}">
+    <strong>GitHub</strong>
+    <span>{{ integrations.github_owner if integrations.github_ready else 'Ej kopplad' }}</span>
+  </div>
+
+  <div class="{{ 'ready' if integrations.render_ready else 'not-ready' }}">
+    <strong>Render</strong>
+    <span>{{ 'Klar' if integrations.render_ready else 'Ej kopplad' }}</span>
+  </div>
+
+  <div class="{{ 'ready' if integrations.vercel_ready else 'not-ready' }}">
+    <strong>Vercel</strong>
+    <span>{{ 'Klar' if integrations.vercel_ready else 'Ej kopplad' }}</span>
+  </div>
+</section>
+
+<section class="wrap section-head">
+  <div>
+    <h2>Dina projekt</h2>
+    <p>Varje AI-ändring och manuell redigering sparas som en separat revision.</p>
+  </div>
+</section>
+
+<section class="wrap project-grid">
+{% for project in projects %}
+  <a class="project-card" href="/projects/{{ project.id }}">
+    <div class="project-card-top">
+      <span class="status">{{ project.status }}</span>
+
+      {% if project.live_url %}
+        <span class="live-pill">LIVE</span>
+      {% endif %}
+    </div>
+
+    <h3>{{ project.name }}</h3>
+    <p>{{ project.project_type }} · {{ project.stack }}</p>
+
+    {% if project.github_repo %}
+      <small>GitHub: {{ project.github_repo }}</small>
+    {% endif %}
+
+    <div class="card-footer">
+      <span>{{ project.revision_count }} revisioner</span>
+      <strong>Öppna →</strong>
+    </div>
+  </a>
+{% else %}
+  <div class="empty-state">
+    <h3>Inga projekt ännu</h3>
+    <p>Skapa ditt första projekt eller importera ett befintligt ZIP-projekt.</p>
+  </div>
+{% endfor %}
+</section>
+
+<section class="wrap import-card">
+  <div>
+    <span class="eyebrow">Importera</span>
+    <h2>Finslipa något du redan har</h2>
+    <p>
+      Ladda upp ett befintligt projekt som ZIP. Buildern läser kod- och textfiler,
+      sparar dem som revision 1 och låter dig fortsätta med AI-förbättringar.
+    </p>
+  </div>
+
+  <form method="post" action="/projects/import" enctype="multipart/form-data">
+    <label>
+      Projektnamn
+      <input name="name" required placeholder="Ex. Min befintliga hemsida">
+    </label>
+
+    <label>
+      Teknik
+      <input name="stack" value="Befintligt projekt">
+    </label>
+
+    <label>
+      ZIP-fil
+      <input type="file" name="archive" accept=".zip,application/zip" required>
+    </label>
+
+    <button class="secondary" type="submit">Importera projekt</button>
+  </form>
+</section>
+
+{% endblock %}

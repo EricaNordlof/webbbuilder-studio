@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Integrationer · {{ app_name }}{% endblock %}
+
+{% block content %}
+
+<section class="wrap narrow wide-narrow">
+
+  <a class="backlink" href="/">← Till projekt</a>
+
+  <span class="eyebrow">Setup en gång</span>
+
+  <h1>Integrationer</h1>
+
+  <p class="lead">
+    När nycklarna är satta på servern kan buildern skapa GitHub-repositories,
+    pusha kompletta revisioner och starta deploy utan att du behöver kopiera kod manuellt.
+  </p>
+
+  <div class="integration-grid">
+
+    <article class="integration-card {{ 'connected' if integrations.github_ready and not github_error else '' }}">
+      <div class="integration-icon">GH</div>
+      <div>
+        <h2>GitHub</h2>
+
+        {% if integrations.github_ready and github_user %}
+          <span class="connection-pill">Ansluten</span>
+          <p>
+            Inloggad som <strong>{{ github_user.login }}</strong>.
+            Standardägare: <strong>{{ integrations.github_owner }}</strong>.
+          </p>
+        {% elif github_error %}
+          <span class="connection-pill bad">Fel</span>
+          <p>{{ github_error }}</p>
+        {% else %}
+          <span class="connection-pill bad">Ej konfigurerad</span>
+          <p>Sätt <code>GITHUB_TOKEN</code> och <code>GITHUB_OWNER</code>.</p>
+        {% endif %}
+      </div>
+    </article>
+
+    <article class="integration-card {{ 'connected' if integrations.render_ready else '' }}">
+      <div class="integration-icon">R</div>
+      <div>
+        <h2>Render</h2>
+
+        {% if integrations.render_ready %}
+          <span class="connection-pill">Klar</span>
+          <p>
+            Buildern kan skapa en ny tjänst från GitHub och därefter trigga nya deployer
+            med senaste commit.
+          </p>
+        {% else %}
+          <span class="connection-pill bad">Ej konfigurerad</span>
+          <p>Sätt <code>RENDER_API_KEY</code> och <code>RENDER_OWNER_ID</code>.</p>
+        {% endif %}
+      </div>
+    </article>
+
+    <article class="integration-card {{ 'connected' if integrations.vercel_ready else '' }}">
+      <div class="integration-icon">V</div>
+      <div>
+        <h2>Vercel</h2>
+
+        {% if integrations.vercel_ready %}
+          <span class="connection-pill">Klar</span>
+          <p>
+            Buildern kan skapa en produktionsdeployment från projektets GitHub-repository.
+          </p>
+        {% else %}
+          <span class="connection-pill bad">Ej konfigurerad</span>
+          <p>
+            Sätt <code>VERCEL_TOKEN</code>. <code>VERCEL_TEAM_ID</code> är valfri.
+          </p>
+        {% endif %}
+      </div>
+    </article>
+
+    <article class="integration-card">
+      <div class="integration-icon">AI</div>
+      <div>
+        <h2>OpenAI</h2>
+
+        {% if integrations %}
+          <p>
+            AI-generering använder servervariabeln <code>OPENAI_API_KEY</code>.
+            API-nyckeln skickas aldrig till projektens frontend.
+          </p>
+        {% endif %}
+      </div>
+    </article>
+
+  </div>
+
+  <div class="setup-box">
+    <h2>Miljövariabler</h2>
+
+    <pre>OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5
+
+GITHUB_TOKEN=...
+GITHUB_OWNER=EricaNordlof
+
+RENDER_API_KEY=...
+RENDER_OWNER_ID=...
+RENDER_REGION=frankfurt
+
+VERCEL_TOKEN=...
+VERCEL_TEAM_ID=...</pre>
+
+    <p>
+      Hemligheter ska endast ligga som servermiljövariabler.
+      Lägg dem aldrig i ett genererat projekts frontend eller i ett publikt repository.
+    </p>
+  </div>
+
+</section>
+
+{% endblock %}

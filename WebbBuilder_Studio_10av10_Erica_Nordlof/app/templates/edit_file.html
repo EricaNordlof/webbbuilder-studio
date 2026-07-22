@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ path }} · {{ project.name }}{% endblock %}
+{% block content %}
+<section class="editor-page">
+  <a class="backlink" href="/projects/{{ project.id }}">← Till projektet</a>
+  <span class="eyebrow">Manuell redigering</span>
+  <h1>{{ path }}</h1>
+  <form method="post" action="/projects/{{ project.id }}/file">
+    <input type="hidden" name="path" value="{{ path }}">
+    <textarea class="code-editor" name="content" spellcheck="false" autocomplete="off">{{ content }}</textarea>
+    <div class="editor-actions">
+      <a class="secondary" href="/projects/{{ project.id }}">Avbryt</a>
+      <button class="primary" type="submit">Spara som ny revision</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

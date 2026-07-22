@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: webbbuilder-studio
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_NAME
+        value: WebbBuilder Studio
+
+      - key: APP_PASSWORD
+        sync: false
+
+      - key: SESSION_SECRET
+        generateValue: true
+
+      - key: SESSION_SECURE
+        value: "true"
+
+      - key: OPENAI_API_KEY
+        sync: false
+
+      - key: OPENAI_MODEL
+        value: gpt-5
+
+      - key: GITHUB_TOKEN
+        sync: false
+
+      - key: GITHUB_OWNER
+        value: EricaNordlof
+
+      - key: RENDER_API_KEY
+        sync: false
+
+      - key: RENDER_OWNER_ID
+        sync: false
+
+      - key: RENDER_REGION
+        value: frankfurt
+
+      - key: VERCEL_TOKEN
+        sync: false
+
+      - key: VERCEL_TEAM_ID
+        sync: false
+
+      - key: DATABASE_PATH
+        value: ./storage/webbbuilder.db

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Nytt projekt · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="wrap narrow">
+  <a class="backlink" href="/">← Till projekt</a>
+  <span class="eyebrow">Ny leverans</span>
+  <h1>Vad vill du bygga?</h1>
+  <p class="lead">Beskriv det ungefär som du skulle ha beskrivit det för en utvecklare. Du kan finslipa allt senare.</p>
+
+  <form class="builder-form" method="post" action="/projects/new">
+    <label>Projektnamn<input name="name" required placeholder="Ex. Bokningsapp för stuguthyrning"></label>
+
+    <div class="form-grid">
+      <label>Typ
+        <select name="project_type">
+          <option>Hemsida</option><option>Landing page</option><option selected>Webbapp</option>
+          <option>Adminverktyg</option><option>Portfolio</option><option>E-handel / katalog</option>
+        </select>
+      </label>
+      <label>Teknik
+        <select name="stack">
+          <option>HTML + CSS + JavaScript</option>
+          <option>React + Vite</option>
+          <option>Next.js + TypeScript</option>
+          <option>FastAPI + Jinja + JavaScript</option>
+          <option>Node.js + Express + JavaScript</option>
+          <option selected>Välj bästa lämpliga stack</option>
+        </select>
+      </label>
+    </div>
+
+    <label>Beskriv exakt vad du vill ha
+      <textarea name="brief" rows="15" required placeholder="Exempel:
+
+Jag vill ha en mobilvänlig bokningsapp för uthyrning.
+
+Målgrupp:
+Privatpersoner och företag.
+
+Sidor:
+Startsida, priser, bokning, kontakt.
+
+Funktioner:
+Kalender, lagerkontroll, orderöversikt, PDF-bekräftelse.
+
+Design:
+Enkel, professionell, stora knappar på mobil.
+
+Viktigt:
+Skriv hela projektet, inte bara delar."></textarea>
+    </label>
+
+    <div class="form-tip"><strong>Tips:</strong> Skriv målgrupp, funktioner, sidor, design, regler, mobilkrav och vad som absolut inte får saknas.</div>
+    <button class="primary large-button" type="submit">Skapa projekt</button>
+  </form>
+</section>
+{% endblock %}
