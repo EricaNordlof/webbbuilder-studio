@@ -60,13 +60,6 @@ SESSION_SECURE = (
 
 app = FastAPI(title=APP_NAME)
 
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=SESSION_SECRET,
-    https_only=SESSION_SECURE,
-    same_site="lax",
-)
-
 app.mount(
     "/static",
     StaticFiles(directory=str(BASE_DIR / "static")),
@@ -141,6 +134,17 @@ async def protect_builder(request: Request, call_next):
         )
 
     return await call_next(request)
+
+
+# SessionMiddleware registreras efter de egna HTTP-middleware-funktionerna.
+# Starlette bygger middleware-stacken i omvänd registreringsordning, vilket
+# gör att sessionsdata då finns innan protect_builder läser request.session.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SESSION_SECRET,
+    https_only=SESSION_SECURE,
+    same_site="lax",
+)
 
 
 @app.get("/health")
