@@ -3,7 +3,13 @@ services:
     name: webbbuilder-studio
     runtime: docker
     plan: free
+
+    rootDir: WebbBuilder_Studio_10av10_Erica_Nordlof
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
     healthCheckPath: /health
+
     envVars:
       - key: APP_NAME
         value: WebbBuilder Studio
