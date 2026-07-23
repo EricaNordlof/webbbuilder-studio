@@ -2,35 +2,106 @@
 <html lang="sv">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <meta name="theme-color" content="#07111b">
-  <link rel="stylesheet" href="/static/styles.css">
+
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,viewport-fit=cover"
+  >
+
+  <title>
+    {% block title %}{{ app_name }}{% endblock %}
+  </title>
+
+  <meta
+    name="theme-color"
+    content="#07111b"
+  >
+
+  <!--
+    Versionsparametern gör att webbläsaren hämtar den nya
+    CSS-filen efter en deploy i stället för en gammal cache.
+  -->
+  <link
+    rel="stylesheet"
+    href="/static/styles.css?v=20260723-2"
+  >
 </head>
+
 <body>
-<header class="topbar">
-  <a class="brand" href="/">
-    <span class="brandmark">W</span>
-    <span>
-      <strong>{{ app_name }}</strong>
-      <small>Bygg · finslipa · publicera</small>
-    </span>
-  </a>
 
-  <nav>
-    <a href="/">Projekt</a>
-    <a href="/projects/new">Nytt projekt</a>
-    <a href="/integrations">Integrationer</a>
-    <form method="post" action="/logout">
-      <button class="linkbutton" type="submit">Logga ut</button>
-    </form>
-  </nav>
-</header>
+  <header class="topbar">
 
-<main>
-  {% block content %}{% endblock %}
-</main>
+    <a
+      class="brand"
+      href="/"
+    >
 
-<script src="/static/app.js"></script>
+      <span class="brandmark">
+        W
+      </span>
+
+      <span>
+
+        <strong>
+          {{ app_name }}
+        </strong>
+
+        <small>
+          Bygg · finslipa · publicera
+        </small>
+
+      </span>
+
+    </a>
+
+    <nav>
+
+      <a href="/">
+        Projekt
+      </a>
+
+      <a href="/projects/new">
+        Nytt projekt
+      </a>
+
+      <a href="/integrations">
+        Integrationer
+      </a>
+
+      <form
+        method="post"
+        action="/logout"
+      >
+
+        <button
+          class="linkbutton"
+          type="submit"
+        >
+          Logga ut
+        </button>
+
+      </form>
+
+    </nav>
+
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <!--
+    VIKTIGT:
+    Versionsparametern tvingar webbläsaren och eventuell CDN-cache
+    att hämta den nya app.js-filen.
+
+    Ändra versionsnumret igen nästa gång du gör en större ändring
+    i app.js, exempelvis:
+    ?v=20260723-3
+  -->
+  <script
+    src="/static/app.js?v=20260723-2"
+  ></script>
+
 </body>
 </html>
