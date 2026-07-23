@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import difflib
 import io
 import os
@@ -56,6 +57,10 @@ SESSION_SECRET = os.getenv(
 SESSION_SECURE = (
     os.getenv("SESSION_SECURE", "false").strip().lower()
     in {"1", "true", "yes", "on"}
+)
+GENERATION_TIMEOUT_SECONDS = max(
+    60,
+    min(int(os.getenv("GENERATION_TIMEOUT_SECONDS", "210")), 900),
 )
 
 app = FastAPI(title=APP_NAME)
@@ -530,11 +535,14 @@ async def generate(
         raise HTTPException(404, "Projektet hittades inte.")
 
     try:
-        result = await generate_project(
-            name=project["name"],
-            project_type=project["project_type"],
-            stack=project["stack"],
-            brief=project["brief"],
+        result = await asyncio.wait_for(
+            generate_project(
+                name=project["name"],
+                project_type=project["project_type"],
+                stack=project["stack"],
+                brief=project["brief"],
+            ),
+            timeout=GENERATION_TIMEOUT_SECONDS,
         )
 
         database.add_revision(
@@ -547,6 +555,24 @@ async def generate(
 
         auto_error = await maybe_auto_publish(project_id)
 
+    except asyncio.TimeoutError:
+        message = (
+            f"AI-genereringen överskred {GENERATION_TIMEOUT_SECONDS} sekunder "
+            "och avbröts. Försök igen med ett mindre första projekt."
+        )
+        return RedirectResponse(
+            f"/projects/{project_id}?error={quote_plus(message)}",
+            status_code=303,
+        )
+    except asyncio.TimeoutError:
+        message = (
+            f"AI-genereringen överskred {GENERATION_TIMEOUT_SECONDS} sekunder "
+            "och avbröts. Försök igen med en mindre ändringsinstruktion."
+        )
+        return RedirectResponse(
+            f"/projects/{project_id}?error={quote_plus(message)}",
+            status_code=303,
+        )
     except Exception as exc:
         message = str(exc)[:700]
         return RedirectResponse(
@@ -594,13 +620,16 @@ async def refine(
         )
 
     try:
-        result = await refine_project(
-            name=project["name"],
-            project_type=project["project_type"],
-            stack=project["stack"],
-            original_brief=project["brief"],
-            instruction=instruction,
-            current_files=current["files"],
+        result = await asyncio.wait_for(
+            refine_project(
+                name=project["name"],
+                project_type=project["project_type"],
+                stack=project["stack"],
+                original_brief=project["brief"],
+                instruction=instruction,
+                current_files=current["files"],
+            ),
+            timeout=GENERATION_TIMEOUT_SECONDS,
         )
 
         database.add_revision(
