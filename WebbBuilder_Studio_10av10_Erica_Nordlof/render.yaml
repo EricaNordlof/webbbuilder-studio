@@ -3,6 +3,7 @@ services:
     name: webbbuilder-studio
     runtime: docker
     plan: free
+    region: oregon
 
     rootDir: WebbBuilder_Studio_10av10_Erica_Nordlof
     dockerfilePath: ./Dockerfile
@@ -23,6 +24,10 @@ services:
       - key: SESSION_SECURE
         value: "true"
 
+      # ======================================================
+      # OPENAI
+      # ======================================================
+
       - key: OPENAI_API_KEY
         sync: false
 
@@ -41,11 +46,19 @@ services:
       - key: GENERATION_TIMEOUT_SECONDS
         value: "210"
 
+      # ======================================================
+      # GITHUB
+      # ======================================================
+
       - key: GITHUB_TOKEN
         sync: false
 
       - key: GITHUB_OWNER
         value: EricaNordlof
+
+      # ======================================================
+      # RENDER
+      # ======================================================
 
       - key: RENDER_API_KEY
         sync: false
@@ -56,11 +69,46 @@ services:
       - key: RENDER_REGION
         value: frankfurt
 
+      # ======================================================
+      # VERCEL
+      # ======================================================
+
       - key: VERCEL_TOKEN
         sync: false
 
       - key: VERCEL_TEAM_ID
         sync: false
 
-      - key: DATABASE_PATH
-        value: ./storage/webbbuilder.db
+      # ======================================================
+      # DATABASE
+      #
+      # Render sätter DATABASE_URL automatiskt till den
+      # interna anslutningssträngen för PostgreSQL-databasen.
+      #
+      # db.py använder PostgreSQL när DATABASE_URL finns.
+      # SQLite används endast som fallback lokalt.
+      # ======================================================
+
+      - key: DATABASE_URL
+        fromDatabase:
+          name: webbbuilder-db
+          property: connectionString
+
+
+# ============================================================
+# POSTGRESQL
+# ============================================================
+
+databases:
+  - name: webbbuilder-db
+    plan: free
+    region: oregon
+
+    databaseName: webbbuilder
+    user: webbbuilder
+
+    postgresMajorVersion: "18"
+
+    # Databasen ska endast nås från Render-tjänster
+    # via det privata nätverket.
+    ipAllowList: []
