@@ -12,6 +12,10 @@ services:
     healthCheckPath: /health
 
     envVars:
+      # ======================================================
+      # APP
+      # ======================================================
+
       - key: APP_NAME
         value: WebbBuilder Studio
 
@@ -82,33 +86,28 @@ services:
       # ======================================================
       # DATABASE
       #
-      # Render sätter DATABASE_URL automatiskt till den
-      # interna anslutningssträngen för PostgreSQL-databasen.
+      # Använder befintliga Render PostgreSQL-instansen
+      # "flowforge-db".
       #
-      # db.py använder PostgreSQL när DATABASE_URL finns.
-      # SQLite används endast som fallback lokalt.
+      # WebbBuilder skapar alltså INTE en andra gratis
+      # PostgreSQL-instans.
+      #
+      # connectionString är Render-databasens privata
+      # PostgreSQL-URL och sätts automatiskt som DATABASE_URL.
       # ======================================================
 
       - key: DATABASE_URL
         fromDatabase:
-          name: webbbuilder-db
+          name: flowforge-db
           property: connectionString
 
+      # ======================================================
+      # LOCAL SQLITE FALLBACK
+      #
+      # Den här används endast när DATABASE_URL saknas,
+      # exempelvis vid lokal utveckling.
+      # På Render används PostgreSQL.
+      # ======================================================
 
-# ============================================================
-# POSTGRESQL
-# ============================================================
-
-databases:
-  - name: webbbuilder-db
-    plan: free
-    region: oregon
-
-    databaseName: webbbuilder
-    user: webbbuilder
-
-    postgresMajorVersion: "18"
-
-    # Databasen ska endast nås från Render-tjänster
-    # via det privata nätverket.
-    ipAllowList: []
+      - key: DATABASE_PATH
+        value: ./storage/webbbuilder.db
