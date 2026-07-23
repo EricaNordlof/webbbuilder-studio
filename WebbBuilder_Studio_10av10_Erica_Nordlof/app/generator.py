@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 import html
 import json
 import os
 import re
+import time
 from typing import Any
 
 import httpx
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5").strip()
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini").strip()
+OPENAI_REQUEST_TIMEOUT = max(30, min(int(os.getenv("OPENAI_REQUEST_TIMEOUT", "180")), 600))
+OPENAI_MAX_OUTPUT_TOKENS = max(4000, min(int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "20000")), 60000))
+OPENAI_REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT", "low").strip().lower()
 MAX_PROJECT_FILES = int(os.getenv("MAX_PROJECT_FILES", "80"))
 MAX_FILE_CHARS = int(os.getenv("MAX_FILE_CHARS", "120000"))
 
@@ -119,16 +124,69 @@ def _normalize_manifest(data: dict[str, Any]) -> dict[str, Any]:
         ],
     }
 
+def _openai_error_message(response: httpx.Response) -> str:
+    request_id = response.headers.get("x-request-id", "").strip()
+
+    try:
+        payload = response.json()
+    except Exception:
+        payload = {}
+
+    error = payload.get("error") if isinstance(payload, dict) else None
+    code = ""
+    message = ""
+
+    if isinstance(error, dict):
+        code = str(error.get("code") or error.get("type") or "").strip()
+        message = str(error.get("message") or "").strip()
+
+    suffix = f" OpenAI request-id: {request_id}" if request_id else ""
+
+    if response.status_code == 401:
+        return (
+            "OpenAI API-nyckeln nekades. Kontrollera OPENAI_API_KEY i Render."
+            + suffix
+        )
+
+    if response.status_code == 429:
+        lowered = (code + " " + message).lower()
+        if "insufficient_quota" in lowered or "billing" in lowered or "quota" in lowered:
+            return (
+                "OpenAI API saknar tillgänglig kredit/betalningskvot. "
+                "Kontrollera Billing/Credits i OpenAI Platform."
+                + suffix
+            )
+        return (
+            "OpenAI rate limit nåddes. Vänta en stund och försök igen."
+            + suffix
+        )
+
+    if response.status_code == 404 and "model" in message.lower():
+        return (
+            f"Modellen {OPENAI_MODEL!r} är inte tillgänglig för API-nyckeln. "
+            "Ändra OPENAI_MODEL i Render."
+            + suffix
+        )
+
+    clean = message or str(payload)[:700] or response.text[:700]
+    return (
+        f"AI-anropet misslyckades ({response.status_code}): {clean}"
+        + suffix
+    )
+
+
 async def _call_openai(prompt: str) -> dict[str, Any]:
     if not OPENAI_API_KEY:
         raise RuntimeError(
             "OPENAI_API_KEY saknas. Lägg nyckeln som en servermiljövariabel."
         )
 
-    payload = {
+    payload: dict[str, Any] = {
         "model": OPENAI_MODEL,
         "instructions": SYSTEM_PROMPT,
         "input": prompt,
+        "store": False,
+        "max_output_tokens": OPENAI_MAX_OUTPUT_TOKENS,
         "text": {
             "format": {
                 "type": "json_schema",
@@ -139,28 +197,88 @@ async def _call_openai(prompt: str) -> dict[str, Any]:
         },
     }
 
+    if (
+        OPENAI_REASONING_EFFORT in {"none", "minimal", "low", "medium", "high", "xhigh"}
+        and (OPENAI_MODEL.startswith("gpt-5") or OPENAI_MODEL.startswith("o"))
+    ):
+        payload["reasoning"] = {"effort": OPENAI_REASONING_EFFORT}
+
     headers = {
         "Authorization": f"Bearer {OPENAI_API_KEY}",
         "Content-Type": "application/json",
     }
 
-    async with httpx.AsyncClient(timeout=300.0) as client:
-        response = await client.post(
-            "https://api.openai.com/v1/responses",
-            headers=headers,
-            json=payload,
+    timeout = httpx.Timeout(
+        connect=20.0,
+        read=float(OPENAI_REQUEST_TIMEOUT),
+        write=30.0,
+        pool=20.0,
+    )
+
+    started = time.monotonic()
+    print(
+        f"[webbbuilder] OpenAI generation start: model={OPENAI_MODEL}, "
+        f"max_output_tokens={OPENAI_MAX_OUTPUT_TOKENS}",
+        flush=True,
+    )
+
+    try:
+        async with asyncio.timeout(OPENAI_REQUEST_TIMEOUT):
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/responses",
+                    headers=headers,
+                    json=payload,
+                )
+    except TimeoutError as exc:
+        elapsed = int(time.monotonic() - started)
+        print(
+            f"[webbbuilder] OpenAI generation hard-timeout after {elapsed}s",
+            flush=True,
         )
+        raise RuntimeError(
+            f"AI-genereringen tog längre än {OPENAI_REQUEST_TIMEOUT} sekunder "
+            "och avbröts. Försök igen med ett mindre första projekt eller en "
+            "snabbare modell."
+        ) from exc
+    except httpx.TimeoutException as exc:
+        raise RuntimeError(
+            "Tidsgränsen mot OpenAI API överskreds. Försök igen."
+        ) from exc
+    except httpx.RequestError as exc:
+        raise RuntimeError(
+            f"Kunde inte ansluta stabilt till OpenAI API: {exc}"
+        ) from exc
+
+    elapsed = int(time.monotonic() - started)
+    print(
+        f"[webbbuilder] OpenAI response received: "
+        f"status={response.status_code}, elapsed={elapsed}s",
+        flush=True,
+    )
 
     if response.status_code >= 400:
-        try:
-            detail = response.json()
-        except Exception:
-            detail = response.text
+        raise RuntimeError(_openai_error_message(response))
+
+    response_payload = response.json()
+    status = str(response_payload.get("status") or "").lower()
+
+    if status in {"failed", "cancelled"}:
         raise RuntimeError(
-            f"AI-anropet misslyckades ({response.status_code}): {detail}"
+            f"OpenAI avslutade genereringen med status: {status}."
         )
 
-    output_text = _extract_output_text(response.json())
+    if status == "incomplete":
+        reason = (
+            (response_payload.get("incomplete_details") or {}).get("reason")
+            or "okänd orsak"
+        )
+        raise RuntimeError(
+            "AI-svaret blev ofullständigt "
+            f"({reason}). Höj OPENAI_MAX_OUTPUT_TOKENS eller be om ett mindre projekt."
+        )
+
+    output_text = _extract_output_text(response_payload)
     if not output_text.strip():
         raise RuntimeError("AI-svaret saknade textinnehåll.")
 
