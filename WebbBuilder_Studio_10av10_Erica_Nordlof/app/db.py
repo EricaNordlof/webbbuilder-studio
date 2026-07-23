@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import uuid
 from contextlib import contextmanager
@@ -23,6 +24,17 @@ DB_PATH = Path(
     )
 )
 
+# WebbBuilder får ett eget schema när en PostgreSQL-databas delas
+# med exempelvis FlowForge.
+POSTGRES_SCHEMA = (
+    os.getenv(
+        "POSTGRES_SCHEMA",
+        "webbbuilder",
+    )
+    .strip()
+    .lower()
+)
+
 USE_POSTGRES = DATABASE_URL.startswith(
     (
         "postgres://",
@@ -31,12 +43,59 @@ USE_POSTGRES = DATABASE_URL.startswith(
 )
 
 
+# ============================================================
+# VALIDATION
+# ============================================================
+
+_SCHEMA_RE = re.compile(
+    r"^[a-z_][a-z0-9_]*$"
+)
+
+
+def _validate_schema_name(
+    schema: str,
+) -> str:
+    """
+    PostgreSQL-schema används i SQL-identifiers och kan därför
+    inte skickas som vanlig query-parameter.
+
+    Tillåt endast säkra identifierare.
+    """
+
+    if not schema:
+        raise RuntimeError(
+            "POSTGRES_SCHEMA får inte vara tomt."
+        )
+
+    if not _SCHEMA_RE.fullmatch(schema):
+        raise RuntimeError(
+            "Ogiltigt POSTGRES_SCHEMA. "
+            "Använd endast små bokstäver, siffror och underscore, "
+            "och börja med bokstav eller underscore."
+        )
+
+    return schema
+
+
+if USE_POSTGRES:
+    POSTGRES_SCHEMA = _validate_schema_name(
+        POSTGRES_SCHEMA
+    )
+
+
+# ============================================================
+# TIME
+# ============================================================
+
 def utcnow() -> str:
     """
     Returnerar aktuell UTC-tid som ISO-8601-sträng.
     Samma format används i både SQLite och PostgreSQL.
     """
-    return datetime.now(timezone.utc).isoformat()
+
+    return datetime.now(
+        timezone.utc
+    ).isoformat()
 
 
 # ============================================================
@@ -45,16 +104,19 @@ def utcnow() -> str:
 
 def connect() -> Any:
     """
-    Ansluter till PostgreSQL när DATABASE_URL finns.
+    PostgreSQL används när DATABASE_URL finns.
 
-    Annars används lokal SQLite-databas som fallback,
-    exempelvis vid lokal utveckling.
+    På Render kan WebbBuilder dela samma PostgreSQL-instans
+    som ett annat projekt men använda ett separat schema.
+
+    Om DATABASE_URL saknas används SQLite lokalt.
     """
 
     if USE_POSTGRES:
         try:
             import psycopg
             from psycopg.rows import dict_row
+
         except ImportError as exc:
             raise RuntimeError(
                 "PostgreSQL är aktiverat via DATABASE_URL, "
@@ -64,20 +126,53 @@ def connect() -> Any:
 
         database_url = DATABASE_URL
 
-        # Normalisera äldre postgres://-URL:er.
-        if database_url.startswith("postgres://"):
+        # Normalisera äldre postgres://-URL.
+        if database_url.startswith(
+            "postgres://"
+        ):
             database_url = (
                 "postgresql://"
-                + database_url[len("postgres://"):]
+                + database_url[
+                    len("postgres://"):
+                ]
             )
 
-        return psycopg.connect(
+        conn = psycopg.connect(
             database_url,
             row_factory=dict_row,
             connect_timeout=10,
         )
 
-    # Lokal SQLite fallback.
+        # Skapa WebbBuilders privata schema.
+        #
+        # POSTGRES_SCHEMA är validerat ovan och innehåller därför
+        # endast ett säkert PostgreSQL-identifierarnamn.
+        conn.execute(
+            f"""
+            CREATE SCHEMA IF NOT EXISTS
+            {POSTGRES_SCHEMA}
+            """
+        )
+
+        # Alla oprefixerade tabeller i denna anslutning pekar nu
+        # först på WebbBuilders schema.
+        #
+        # public finns kvar sist så PostgreSQL-standardfunktioner
+        # och extensions fortfarande fungerar normalt.
+        conn.execute(
+            f"""
+            SET search_path TO
+            {POSTGRES_SCHEMA},
+            public
+            """
+        )
+
+        return conn
+
+    # --------------------------------------------------------
+    # LOCAL SQLITE FALLBACK
+    # --------------------------------------------------------
+
     DB_PATH.parent.mkdir(
         parents=True,
         exist_ok=True,
@@ -94,7 +189,7 @@ def connect() -> Any:
         "PRAGMA foreign_keys = ON"
     )
 
-    # Förbättrar samtidig läsning/skrivning lokalt.
+    # Förbättrar samtidiga läsningar/skrivningar lokalt.
     conn.execute(
         "PRAGMA journal_mode = WAL"
     )
@@ -130,17 +225,22 @@ def db() -> Iterator[Any]:
 # SQL HELPERS
 # ============================================================
 
-def _sql(query: str) -> str:
+def _sql(
+    query: str,
+) -> str:
     """
     SQLite använder ? som placeholder.
     Psycopg/PostgreSQL använder %s.
 
-    Våra interna queries använder därför ? och konverteras
-    automatiskt när PostgreSQL används.
+    Interna queries skrivs med ? och konverteras automatiskt
+    för PostgreSQL.
     """
 
     if USE_POSTGRES:
-        return query.replace("?", "%s")
+        return query.replace(
+            "?",
+            "%s",
+        )
 
     return query
 
@@ -150,6 +250,7 @@ def _execute(
     query: str,
     params: tuple[Any, ...] | list[Any] = (),
 ) -> Any:
+
     return conn.execute(
         _sql(query),
         params,
@@ -161,6 +262,7 @@ def _fetchone(
     query: str,
     params: tuple[Any, ...] | list[Any] = (),
 ) -> Any | None:
+
     cursor = _execute(
         conn,
         query,
@@ -175,6 +277,7 @@ def _fetchall(
     query: str,
     params: tuple[Any, ...] | list[Any] = (),
 ) -> list[Any]:
+
     cursor = _execute(
         conn,
         query,
@@ -187,6 +290,7 @@ def _fetchall(
 def _row_to_dict(
     row: Any | None,
 ) -> dict[str, Any] | None:
+
     if row is None:
         return None
 
@@ -194,7 +298,7 @@ def _row_to_dict(
 
 
 # ============================================================
-# SCHEMA / MIGRATIONS
+# SCHEMA HELPERS / MIGRATIONS
 # ============================================================
 
 def _columns(
@@ -202,19 +306,23 @@ def _columns(
     table: str,
 ) -> set[str]:
     """
-    Hämtar befintliga kolumner för migrationskontroll.
+    Hämtar befintliga kolumner i aktuell WebbBuilder-databas.
     """
 
     if USE_POSTGRES:
+
         rows = _fetchall(
             conn,
             """
             SELECT column_name
             FROM information_schema.columns
-            WHERE table_schema = current_schema()
+            WHERE table_schema = ?
               AND table_name = ?
             """,
-            (table,),
+            (
+                POSTGRES_SCHEMA,
+                table,
+            ),
         )
 
         return {
@@ -223,7 +331,9 @@ def _columns(
         }
 
     rows = conn.execute(
-        f"PRAGMA table_info({table})"
+        f"""
+        PRAGMA table_info({table})
+        """
     ).fetchall()
 
     return {
@@ -239,7 +349,7 @@ def _ensure_column(
     definition: str,
 ) -> None:
     """
-    Enkel bakåtkompatibel migration för redan skapade databaser.
+    Enkel bakåtkompatibel migration.
     """
 
     if column in _columns(
@@ -248,7 +358,7 @@ def _ensure_column(
     ):
         return
 
-    # table, column och definition skickas endast från vår egen kod.
+    # Värdena kommer endast från vår egen statiska kod.
     conn.execute(
         f"""
         ALTER TABLE {table}
@@ -257,25 +367,36 @@ def _ensure_column(
     )
 
 
+# ============================================================
+# INITIALIZATION
+# ============================================================
+
 def init_db() -> None:
     """
-    Skapar databasschema automatiskt.
+    Skapar WebbBuilders schema och tabeller.
 
-    Fungerar med:
-    - PostgreSQL i Render/produktion
-    - SQLite lokalt
+    Produktion / Render:
+        PostgreSQL
+        schema = webbbuilder
+
+    Lokal utveckling:
+        SQLite
+        ./storage/webbbuilder.db
     """
 
     schema_statements = [
+
         """
         CREATE TABLE IF NOT EXISTS projects (
             id TEXT PRIMARY KEY,
+
             name TEXT NOT NULL,
             project_type TEXT NOT NULL,
             stack TEXT NOT NULL,
             brief TEXT NOT NULL,
 
-            status TEXT NOT NULL DEFAULT 'draft',
+            status TEXT NOT NULL
+                DEFAULT 'draft',
 
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -293,7 +414,9 @@ def init_db() -> None:
             instruction TEXT NOT NULL,
             summary TEXT NOT NULL,
 
-            notes_json TEXT NOT NULL DEFAULT '[]',
+            notes_json TEXT NOT NULL
+                DEFAULT '[]',
+
             files_json TEXT NOT NULL,
 
             created_at TEXT NOT NULL,
@@ -324,7 +447,8 @@ def init_db() -> None:
             url TEXT,
             commit_sha TEXT,
 
-            message TEXT NOT NULL DEFAULT '',
+            message TEXT NOT NULL
+                DEFAULT '',
 
             created_at TEXT NOT NULL,
 
@@ -335,7 +459,9 @@ def init_db() -> None:
         """,
 
         """
-        CREATE INDEX IF NOT EXISTS idx_revisions_project
+        CREATE INDEX IF NOT EXISTS
+        idx_revisions_project
+
         ON revisions(
             project_id,
             revision_number DESC
@@ -343,7 +469,9 @@ def init_db() -> None:
         """,
 
         """
-        CREATE INDEX IF NOT EXISTS idx_deployments_project
+        CREATE INDEX IF NOT EXISTS
+        idx_deployments_project
+
         ON deployments(
             project_id,
             created_at DESC
@@ -354,10 +482,12 @@ def init_db() -> None:
     with db() as conn:
 
         for statement in schema_statements:
-            conn.execute(statement)
+            conn.execute(
+                statement
+            )
 
         # ----------------------------------------------------
-        # Lightweight migrations för äldre WebbBuilder-databaser
+        # LIGHTWEIGHT MIGRATIONS
         # ----------------------------------------------------
 
         _ensure_column(
@@ -420,7 +550,10 @@ def init_db() -> None:
             conn,
             "projects",
             "auto_publish",
-            "INTEGER NOT NULL DEFAULT 0",
+            """
+            INTEGER NOT NULL
+            DEFAULT 0
+            """,
         )
 
 
@@ -435,7 +568,10 @@ def create_project(
     brief: str,
 ) -> str:
 
-    project_id = uuid.uuid4().hex[:16]
+    project_id = (
+        uuid.uuid4().hex[:16]
+    )
+
     now = utcnow()
 
     with db() as conn:
@@ -478,7 +614,9 @@ def create_project(
     return project_id
 
 
-def list_projects() -> list[dict[str, Any]]:
+def list_projects() -> list[
+    dict[str, Any]
+]:
 
     with db() as conn:
 
@@ -501,7 +639,8 @@ def list_projects() -> list[dict[str, Any]]:
 
             FROM projects p
 
-            ORDER BY p.updated_at DESC
+            ORDER BY
+                p.updated_at DESC
             """,
         )
 
@@ -529,7 +668,9 @@ def get_project(
             ),
         )
 
-    return _row_to_dict(row)
+    return _row_to_dict(
+        row
+    )
 
 
 def update_project(
@@ -554,7 +695,6 @@ def update_project(
         "deploy_service_id",
 
         "live_url",
-
         "auto_publish",
     }
 
@@ -567,7 +707,9 @@ def update_project(
     if not clean:
         return
 
-    clean["updated_at"] = utcnow()
+    clean[
+        "updated_at"
+    ] = utcnow()
 
     columns = ", ".join(
         f"{key} = ?"
@@ -575,8 +717,12 @@ def update_project(
     )
 
     values = (
-        list(clean.values())
-        + [project_id]
+        list(
+            clean.values()
+        )
+        + [
+            project_id
+        ]
     )
 
     with db() as conn:
@@ -641,9 +787,12 @@ def next_revision_number(
     if not row:
         return 1
 
-    return int(
-        row["max_rev"]
-    ) + 1
+    return (
+        int(
+            row["max_rev"]
+        )
+        + 1
+    )
 
 
 def add_revision(
@@ -654,8 +803,10 @@ def add_revision(
     notes: list[str] | None = None,
 ) -> int:
 
-    revision_number = next_revision_number(
-        project_id
+    revision_number = (
+        next_revision_number(
+            project_id
+        )
     )
 
     now = utcnow()
@@ -730,7 +881,9 @@ def add_revision(
 
 def list_revisions(
     project_id: str,
-) -> list[dict[str, Any]]:
+) -> list[
+    dict[str, Any]
+]:
 
     with db() as conn:
 
@@ -750,18 +903,23 @@ def list_revisions(
 
             WHERE project_id = ?
 
-            ORDER BY revision_number DESC
+            ORDER BY
+                revision_number DESC
             """,
             (
                 project_id,
             ),
         )
 
-    result: list[dict[str, Any]] = []
+    result: list[
+        dict[str, Any]
+    ] = []
 
     for row in rows:
 
-        item = dict(row)
+        item = dict(
+            row
+        )
 
         raw_notes = item.pop(
             "notes_json",
@@ -769,8 +927,11 @@ def list_revisions(
         )
 
         try:
-            item["notes"] = json.loads(
-                raw_notes or "[]"
+            item["notes"] = (
+                json.loads(
+                    raw_notes
+                    or "[]"
+                )
             )
 
         except (
@@ -779,7 +940,9 @@ def list_revisions(
         ):
             item["notes"] = []
 
-        result.append(item)
+        result.append(
+            item
+        )
 
     return result
 
@@ -810,7 +973,9 @@ def get_revision(
     if not row:
         return None
 
-    item = dict(row)
+    item = dict(
+        row
+    )
 
     raw_files = item.pop(
         "files_json",
@@ -823,8 +988,11 @@ def get_revision(
     )
 
     try:
-        item["files"] = json.loads(
-            raw_files or "{}"
+        item["files"] = (
+            json.loads(
+                raw_files
+                or "{}"
+            )
         )
 
     except (
@@ -834,8 +1002,11 @@ def get_revision(
         item["files"] = {}
 
     try:
-        item["notes"] = json.loads(
-            raw_notes or "[]"
+        item["notes"] = (
+            json.loads(
+                raw_notes
+                or "[]"
+            )
         )
 
     except (
@@ -862,7 +1033,8 @@ def latest_revision(
 
             WHERE project_id = ?
 
-            ORDER BY revision_number DESC
+            ORDER BY
+                revision_number DESC
 
             LIMIT 1
             """,
@@ -874,7 +1046,9 @@ def latest_revision(
     if not row:
         return None
 
-    item = dict(row)
+    item = dict(
+        row
+    )
 
     raw_files = item.pop(
         "files_json",
@@ -887,8 +1061,11 @@ def latest_revision(
     )
 
     try:
-        item["files"] = json.loads(
-            raw_files or "{}"
+        item["files"] = (
+            json.loads(
+                raw_files
+                or "{}"
+            )
         )
 
     except (
@@ -898,8 +1075,11 @@ def latest_revision(
         item["files"] = {}
 
     try:
-        item["notes"] = json.loads(
-            raw_notes or "[]"
+        item["notes"] = (
+            json.loads(
+                raw_notes
+                or "[]"
+            )
         )
 
     except (
@@ -980,7 +1160,9 @@ def add_deployment(
 
 def list_deployments(
     project_id: str,
-) -> list[dict[str, Any]]:
+) -> list[
+    dict[str, Any]
+]:
 
     with db() as conn:
 
@@ -993,7 +1175,8 @@ def list_deployments(
 
             WHERE project_id = ?
 
-            ORDER BY created_at DESC
+            ORDER BY
+                created_at DESC
 
             LIMIT 30
             """,
