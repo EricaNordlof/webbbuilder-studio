@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Projekt · WebbBuilder Studio v2{% endblock %}
+
+{% block content %}
+
+<section class="wrap hero">
+  <span class="eyebrow">V2 · FÖRENKLAD KÄRNA</span>
+
+  <h1>Beskriv vad du vill bygga.</h1>
+
+  <p class="lead">
+    WebbBuilder skapar projektet i bakgrunden. Du kan sedan
+    förhandsgranska, finslipa och ladda ner hela projektet som ZIP.
+  </p>
+</section>
+
+<section class="wrap" id="new">
+  <div class="panel">
+    <h2>Nytt projekt</h2>
+
+    <form method="post" action="/projects" class="stack">
+      <label>
+        Projektnamn
+        <input
+          name="name"
+          placeholder="Ex. BokaPro"
+          required
+        >
+      </label>
+
+      <label>
+        Typ
+        <select name="project_type" required>
+          <option value="Hemsida">Hemsida</option>
+          <option value="Webbapp">Webbapp</option>
+          <option value="Landningssida">Landningssida</option>
+          <option value="Adminverktyg">Adminverktyg</option>
+        </select>
+      </label>
+
+      <label>
+        Vad vill du bygga?
+        <textarea
+          name="brief"
+          rows="9"
+          required
+          placeholder="Exempel:
+
+Skapa en modern mobilvänlig hemsida för BokaPro.
+
+Startsida med rubriken 'Bokning ska vara enkelt', tre tjänstekort och en tydlig Boka nu-knapp.
+
+Lägg även till en enkel kontaktsida.
+
+Design: ljus, modern och professionell."
+        ></textarea>
+      </label>
+
+      <button class="primary" type="submit">
+        Skapa projekt
+      </button>
+    </form>
+  </div>
+</section>
+
+<section class="wrap section">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">PROJEKT</span>
+      <h2>Dina projekt</h2>
+    </div>
+  </div>
+
+  {% if projects %}
+  <div class="project-grid">
+    {% for project in projects %}
+    <a class="project-card" href="/projects/{{ project.id }}">
+      <span class="status status-{{ project.status }}">
+        {{ project.status }}
+      </span>
+
+      <h3>{{ project.name }}</h3>
+
+      <p>{{ project.project_type }}</p>
+
+      <small>{{ project.revision_count }} revision(er)</small>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    Inga projekt ännu. Skapa ditt första ovan.
+  </div>
+  {% endif %}
+</section>
+
+{% endblock %}
