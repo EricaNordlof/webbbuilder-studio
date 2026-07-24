@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} · WebbBuilder Studio v2{% endblock %}
+
+{% block content %}
+<section class="wrap project-page" {% if is_admin %}data-project-id="{{ project.id }}"{% endif %}>
+  <a class="back" href="/">← Alla projekt</a>
+
+  <div class="project-title-row">
+    <div>
+      <span class="eyebrow">{{ project.project_type }}</span>
+      <h1>{{ project.name }}</h1>
+      <p class="lead small">{{ project.brief }}</p>
+    </div>
+
+    <span class="status status-{{ project.status }}" {% if is_admin %}data-project-status{% endif %}>
+      {{ project.status }}
+    </span>
+  </div>
+
+  {% if is_admin and project.error %}
+  <div class="error-box" data-server-error>{{ project.error }}</div>
+  {% endif %}
+  {% if is_admin %}<div class="error-box" data-client-error hidden></div>{% endif %}
+
+  {% if not revision %}
+    {% if is_admin %}
+    <div class="two-column">
+      <section class="panel">
+        <h2>Redo att bygga</h2>
+        <p>Starta den första AI-genereringen för projektet.</p>
+        <button class="primary full" type="button" data-generate>Generera första versionen</button>
+      </section>
+      <section class="panel muted-panel">
+        <h2>Ej publicerat ännu</h2>
+        <p>När första revisionen är klar blir previewn synlig för alla besökare.</p>
+      </section>
+    </div>
+    {% else %}
+    <div class="empty">Det här projektet har ännu ingen offentlig förhandsvisning.</div>
+    {% endif %}
+  {% else %}
+
+  <div class="action-bar">
+    {% if is_admin %}
+    <a class="primary button-link" href="/projects/{{ project.id }}/download">Ladda ner ZIP</a>
+    {% endif %}
+    <button class="secondary" type="button" data-refresh-preview>Uppdatera preview</button>
+  </div>
+
+  <section class="preview-panel">
+    <div class="preview-toolbar">
+      <strong>Förhandsvisning</strong>
+      <span>Revision {{ revision.revision_number }}</span>
+    </div>
+    <iframe
+      id="previewFrame"
+      title="Projektförhandsvisning"
+      src="/projects/{{ project.id }}/preview"
+      sandbox="allow-scripts allow-forms allow-popups allow-modals"
+    ></iframe>
+  </section>
+
+  {% if is_admin %}
+  <div class="two-column">
+    <section class="panel">
+      <h2>Finslipa</h2>
+      <form data-refine-form class="stack">
+        <label>
+          Vad vill du ändra?
+          <textarea name="instruction" rows="7" required placeholder="Ex. Förbättra startsidan och mobilmenyn."></textarea>
+        </label>
+        <button class="primary full" type="submit">Skapa ny revision</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Senaste leveransen</h2>
+      <p>{{ revision.summary }}</p>
+      {% if revision.notes %}
+      <h3>Noteringar</h3>
+      <ul>
+        {% for note in revision.notes %}<li>{{ note }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="panel upload-panel">
+    <h2>Filer</h2>
+    <p>Endast admin kan ladda upp och ladda ner projektfiler. Uppladdning skapar en ny revision.</p>
+
+    <div class="two-column compact-columns">
+      <form method="post" action="/projects/{{ project.id }}/upload-files" enctype="multipart/form-data" class="stack">
+        <label>
+          Ladda upp textfiler
+          <input type="file" name="files" multiple required>
+        </label>
+        <small>UTF-8-textfiler, max 1 MB per fil.</small>
+        <button class="secondary full" type="submit">Ladda upp filer</button>
+      </form>
+
+      <form method="post" action="/projects/{{ project.id }}/upload-zip" enctype="multipart/form-data" class="stack">
+        <label>
+          Importera ZIP
+          <input type="file" name="archive" accept=".zip,application/zip" required>
+        </label>
+        <small>Bevarar mappar. Max 20 MB och 120 textfiler.</small>
+        <button class="secondary full" type="submit">Ladda upp ZIP</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Revisioner</h2>
+    <div class="revision-list">
+      {% for item in revisions %}
+      <article>
+        <strong>Revision {{ item.revision_number }}</strong>
+        <span>{{ item.instruction }}</span>
+        <small>{{ item.created_at }}</small>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <details class="danger-zone">
+    <summary>Projektinställningar</summary>
+    <form method="post" action="/projects/{{ project.id }}/delete" onsubmit="return confirm('Radera projektet?');">
+      <button class="danger" type="submit">Radera projekt</button>
+    </form>
+  </details>
+  {% endif %}
+  {% endif %}
+</section>
+
+{% if is_admin %}
+<div class="loading-overlay" id="loadingOverlay" hidden>
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <h2>AI-jobbet har startat</h2>
+    <p>WebbBuilder genererar, kvalitetskontrollerar och reparerar automatiskt vid behov.</p>
+    <div class="progress-text" data-loading-status>Startar…</div>
+    <button class="secondary full" type="button" data-close-overlay>Dölj rutan</button>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

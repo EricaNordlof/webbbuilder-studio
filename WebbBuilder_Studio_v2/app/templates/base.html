@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <meta name="theme-color" content="#07121d">
+  <link rel="stylesheet" href="/static/styles.css?v=3">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brandmark">W2</span>
+      <span>
+        <strong>WebbBuilder Studio v2</strong>
+        <small>Projekt · preview · utveckling</small>
+      </span>
+    </a>
+
+    <nav>
+      <a href="/">Projekt</a>
+      {% if is_admin %}
+        <a href="/#new">Nytt projekt</a>
+        <form method="post" action="/logout">
+          <button type="submit" class="nav-button">Logga ut</button>
+        </form>
+      {% else %}
+        <a href="/login">Admin</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="/static/app.js?v=3"></script>
+</body>
+</html>

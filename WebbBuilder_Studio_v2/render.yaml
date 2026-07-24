@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: webbbuilder-studio-v2
+    runtime: docker
+    plan: free
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: APP_NAME
+        value: WebbBuilder Studio v2
+
+      - key: APP_PASSWORD
+        sync: false
+
+      - key: SESSION_SECRET
+        generateValue: true
+
+      - key: SESSION_SECURE
+        value: "true"
+
+      - key: OPENAI_API_KEY
+        sync: false
+
+      - key: OPENAI_MODEL
+        value: gpt-5-mini
+
+      - key: OPENAI_REQUEST_TIMEOUT
+        value: "180"
+
+      - key: OPENAI_MAX_OUTPUT_TOKENS
+        value: "12000"
+
+      - key: OPENAI_REASONING_EFFORT
+        value: low
+
+      - key: QUALITY_MAX_REPAIR_PASSES
+        value: "2"
+
+      - key: QUALITY_HTTP_TIMEOUT
+        value: "10"
+
+      - key: QUALITY_MAX_EXTERNAL_IMAGES
+        value: "30"
+
+      - key: DATABASE_PATH
+        value: /tmp/webbbuilder-v2.db
