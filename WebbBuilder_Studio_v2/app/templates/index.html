@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}WebbBuilder Studio v2 · Erica Nordlöf{% endblock %}
+
+{% block content %}
+<section class="wrap hero recruiter-hero">
+  <div class="hero-copy">
+    <span class="eyebrow">AI-DRIVET FULLSTACKPROJEKT · ERICA NORDLÖF</span>
+    <h1>Jag bygger verktyg som bygger.</h1>
+    <p class="lead hero-lead">
+      WebbBuilder Studio v2 är mitt egenutvecklade AI-verktyg för att skapa,
+      kvalitetskontrollera och vidareutveckla hemsidor och webbappar från naturligt språk.
+      Projektet visar hur jag arbetar med produktidé, backend, frontend, AI-integration,
+      felhantering, versionsflöden och faktisk leverans – inte bara en statisk demo.
+    </p>
+
+    <div class="hero-actions">
+      <a class="primary button-link" href="#projekt">Utforska projekten</a>
+      <a class="secondary button-link" href="https://webutvecklare.se/" target="_blank" rel="noopener noreferrer">Se min portfolio</a>
+      <a class="text-button" href="https://github.com/EricaNordlof/webbbuilder-studio" target="_blank" rel="noopener noreferrer">GitHub →</a>
+    </div>
+
+    <div class="credential-row" aria-label="Kort om Erica">
+      <span><strong>Certifierad</strong> fullstackutvecklare</span>
+      <span><strong>JavaScript / TypeScript</strong> + modern webb</span>
+      <span><strong>FastAPI / Python</strong> i detta projekt</span>
+      <span><strong>Malmö</strong> · kommande YH-studier till mjukvarutestare på EC Utbildning</span>
+    </div>
+  </div>
+
+  <aside class="hero-proof" aria-label="Vad WebbBuilder kan">
+    <span class="proof-label">LIVE PRODUKTPROTOTYP</span>
+    <h2>Från idé till körbart webbprojekt.</h2>
+    <div class="flow-list">
+      <div><span>01</span><p><strong>Beskriv</strong> en hemsida eller webbapp med vanligt språk.</p></div>
+      <div><span>02</span><p><strong>Generera</strong> kompletta projektfiler via AI.</p></div>
+      <div><span>03</span><p><strong>Kvalitetskontrollera</strong> resultatet och reparera fel automatiskt.</p></div>
+      <div><span>04</span><p><strong>Förhandsgranska, finslipa och versionshantera</strong> i samma arbetsyta.</p></div>
+    </div>
+  </aside>
+</section>
+
+<section class="wrap credibility-section">
+  <div class="section-head split-head">
+    <div>
+      <span class="eyebrow">VARFÖR JAG BYGGDE DET</span>
+      <h2>En nischad AI-byggstudio – med riktig produktlogik runt modellen.</h2>
+    </div>
+    <p>
+      WebbBuilder är inte en egen språkmodell. Modellmotorn kommer från OpenAI API.
+      Det jag har byggt är systemet runt den: arbetsflödet, prompt- och filhanteringen,
+      bakgrundsjobben, statusflödet, behörigheterna, revisionerna, kvalitetskontrollen,
+      självreparationen, previewn och exporten.
+    </p>
+  </div>
+
+  <div class="capability-grid">
+    <article class="capability-card">
+      <span class="capability-kicker">FULLSTACK</span>
+      <h3>Produkt från frontend till backend</h3>
+      <p>Publik projektvy, privat adminläge, FastAPI-backend, sessionshantering, filflöden och dynamiska previews i ett sammanhängande system.</p>
+    </article>
+
+    <article class="capability-card">
+      <span class="capability-kicker">AI-ORKUSTRERING</span>
+      <h3>Mer än att bara skicka en prompt</h3>
+      <p>Strukturerade AI-svar, kompletta projektmanifest, generering i bakgrunden, polling av status och separata flöden för första version och finslipning.</p>
+    </article>
+
+    <article class="capability-card">
+      <span class="capability-kicker">RELIABILITY</span>
+      <h3>Kvalitetskontroll och självreparation</h3>
+      <p>WebbBuilder kontrollerar bland annat filer, HTML-referenser och externa bilder. Blockerande fel kan skickas tillbaka till AI:n för automatisk reparationsrunda innan projektet markeras klart.</p>
+    </article>
+
+    <article class="capability-card">
+      <span class="capability-kicker">ITERATION</span>
+      <h3>Jag byggde om när v1 inte höll</h3>
+      <p>Första versionen fastnade i långvariga AI-anrop. I v2 ändrade jag arkitekturen till bakgrundsjobb och statuspolling. För mig är felsökning och ombyggnad en del av utveckling – inte ett misslyckande.</p>
+    </article>
+  </div>
+</section>
+
+{% if is_admin %}
+<section class="wrap admin-create" id="new">
+  <div class="panel">
+    <span class="eyebrow">ADMIN</span>
+    <h2>Nytt projekt</h2>
+    <form method="post" action="/projects" class="stack">
+      <label>
+        Projektnamn
+        <input name="name" placeholder="Ex. BokaPro" required>
+      </label>
+
+      <label>
+        Typ
+        <select name="project_type" required>
+          <option value="Hemsida">Hemsida</option>
+          <option value="Webbapp">Webbapp</option>
+          <option value="Landningssida">Landningssida</option>
+          <option value="Adminverktyg">Adminverktyg</option>
+        </select>
+      </label>
+
+      <label>
+        Vad vill du bygga?
+        <textarea name="brief" rows="8" required placeholder="Beskriv sidor, innehåll, funktioner och design."></textarea>
+      </label>
+
+      <button class="primary" type="submit">Skapa projekt</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+<section class="wrap section projects-showcase" id="projekt">
+  <div class="section-head split-head">
+    <div>
+      <span class="eyebrow">BYGGT I WEBBBUILDER</span>
+      <h2>{% if is_admin %}Dina projekt{% else %}Testa resultatet själv{% endif %}</h2>
+    </div>
+    <p>
+      Projekten nedan är genererade och vidareutvecklade i WebbBuilder Studio.
+      Som besökare kan du öppna varje projekt och använda den publika previewn.
+      Källfiler, uppladdning och ändringar är låsta till admin.
+    </p>
+  </div>
+
+  {% if projects %}
+  <div class="project-grid">
+    {% for project in projects %}
+    <a class="project-card showcase-card" href="/projects/{{ project.id }}">
+      <div class="project-card-top">
+        <span class="status status-{{ project.status }}">
+          {% if not is_admin and project.revision_count > 0 %}LIVE PREVIEW{% else %}{{ project.status }}{% endif %}
+        </span>
+        <span class="project-arrow">↗</span>
+      </div>
+      <h3>{{ project.name }}</h3>
+      <p>{{ project.project_type }}</p>
+      <small>
+        {{ project.revision_count }} revision(er)
+        {% if project.revision_count > 0 %} · Öppna case och preview{% endif %}
+      </small>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Inga projekt publicerade ännu.</div>
+  {% endif %}
+</section>
+
+<section class="wrap builder-story">
+  <div class="story-panel">
+    <div>
+      <span class="eyebrow">TEKNIK OCH ARBETSSÄTT</span>
+      <h2>Vad projektet visar om hur jag utvecklar.</h2>
+    </div>
+
+    <div class="story-list">
+      <article>
+        <span>01</span>
+        <div><h3>Jag börjar med ett verkligt problem</h3><p>Idén kom ur behovet att kunna beskriva en webbprodukt, få en första fungerande version och sedan iterera utan att manuellt pussla ihop varje fil.</p></div>
+      </article>
+      <article>
+        <span>02</span>
+        <div><h3>Jag bygger hela flödet</h3><p>Inte bara UI:t: autentisering, publika och privata behörigheter, AI-anrop, asynkrona jobb, status, felhantering, revisioner, filimport/export och deploybar server.</p></div>
+      </article>
+      <article>
+        <span>03</span>
+        <div><h3>Jag felsöker genom att förändra arkitekturen</h3><p>När v1 visade sig opålitlig byggde jag v2 kring ett enklare och mer robust jobbflöde i stället för att fortsätta lappa samma lösning.</p></div>
+      </article>
+      <article>
+        <span>04</span>
+        <div><h3>Jag tänker produkt, inte bara kod</h3><p>En besökare får en ren portfolio- och previewupplevelse. Admin får verktygen för att skapa, ändra, ladda upp och exportera. Samma produkt – olika behov och behörigheter.</p></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="wrap about-erica" id="om-erica">
+  <div class="about-card">
+    <div class="about-intro">
+      <span class="eyebrow">OM SKAPAREN</span>
+      <h2>Erica Nordlöf</h2>
+      <p class="about-role">Fullstackutvecklare i Malmö · nästa steg: YH-utbildning till mjukvarutestare på EC Utbildning i Malmö</p>
+    </div>
+
+    <div class="about-copy">
+      <p>
+        Jag är certifierad inom fullstackutveckling och har arbetat praktiskt med JavaScript,
+        TypeScript, React/Next.js, Node.js/Express, REST API:er, MongoDB, JWT, Docker och Git.
+        WebbBuilder Studio har dessutom gett mig praktisk erfarenhet av Python/FastAPI,
+        AI-integration, serverflöden och kvalitetslogik. Mitt nästa steg är YH-utbildningen
+        Mjukvarutestare på EC Utbildning i Malmö, där jag vill fördjupa mig i kvalitetssäkring,
+        testmetodik och hur man hittar fel innan användaren gör det.
+      </p>
+      <p>
+        Min bakgrund före utveckling har gett mig vana att arbeta självständigt med problemlösning,
+        planering, dokumentation och ansvar i verklig drift. Nu kombinerar jag det arbetssättet med kod:
+        jag vill förstå problemet, bygga en lösning, testa den systematiskt och få den hela vägen till något som faktiskt fungerar.
+        Kombinationen av utvecklarbakgrund och kommande testutbildning är den profil jag vill bygga vidare på.
+      </p>
+
+      <div class="skills-list" aria-label="Tekniker">
+        <span>JavaScript</span><span>TypeScript</span><span>React / Next.js</span><span>Node / Express</span>
+        <span>FastAPI / Python</span><span>REST API</span><span>MongoDB</span><span>Docker</span><span>Git / GitHub</span><span>AI-integration</span>
+      </div>
+
+      <div class="about-actions">
+        <a class="primary button-link" href="https://webutvecklare.se/" target="_blank" rel="noopener noreferrer">webutvecklare.se</a>
+        <a class="secondary button-link" href="https://github.com/EricaNordlof/webbbuilder-studio" target="_blank" rel="noopener noreferrer">GitHub-projektet</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap closing-cta">
+  <span class="eyebrow">FÖR REKRYTERARE OCH KONTAKTER INOM MJUKVARUTESTNING</span>
+  <h2>Jag vill kombinera utveckling med kvalitetssäkring och mjukvarutestning.</h2>
+  <p>
+    Min fullstackbakgrund gör att jag kan läsa kod, förstå API:er och följa ett fel genom flera lager i ett system.
+    Nästa steg är YH-utbildningen Mjukvarutestare på EC Utbildning i Malmö. WebbBuilder visar redan hur jag arbetar:
+    jag bygger, testar, hittar brister, ändrar arkitektur och lägger in automatisk kvalitetskontroll när något inte håller.
+    Öppna ett projekt ovan för att se resultatet, eller besök min samlade portfolio.
+  </p>
+  <div class="hero-actions centered-actions">
+    <a class="primary button-link" href="https://webutvecklare.se/" target="_blank" rel="noopener noreferrer">Besök webutvecklare.se</a>
+    <a class="secondary button-link" href="#projekt">Se projekten här</a>
+  </div>
+</section>
+{% endblock %}

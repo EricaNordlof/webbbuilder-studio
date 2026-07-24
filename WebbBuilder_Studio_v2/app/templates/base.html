@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <meta name="description" content="WebbBuilder Studio v2 av Erica Nordlöf – ett egenutvecklat AI-drivet verktyg som skapar, kvalitetskontrollerar och vidareutvecklar hemsidor och webbappar.">
+  <meta name="theme-color" content="#07121d">
+  <link rel="stylesheet" href="/static/styles.css?v=5">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="WebbBuilder Studio v2 – startsida">
+      <span class="brandmark">W2</span>
+      <span>
+        <strong>WebbBuilder Studio v2</strong>
+        <small>Byggd av Erica Nordlöf · Malmö</small>
+      </span>
+    </a>
+
+    <nav aria-label="Huvudnavigation">
+      <a href="/#projekt">Projekt</a>
+      <a href="/#om-erica">Om Erica</a>
+      <a href="https://webutvecklare.se/" target="_blank" rel="noopener noreferrer">Portfolio</a>
+      <a href="https://github.com/EricaNordlof/webbbuilder-studio" target="_blank" rel="noopener noreferrer">GitHub</a>
+      {% if is_admin %}
+        <a href="/#new">Nytt projekt</a>
+        <form method="post" action="/logout">
+          <button type="submit" class="nav-button">Logga ut</button>
+        </form>
+      {% else %}
+        <a href="/login">Admin</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div>
+        <strong>Erica Nordlöf</strong>
+        <span>Fullstackutvecklare · Malmö · kommande YH-studier till mjukvarutestare på EC Utbildning</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://webutvecklare.se/" target="_blank" rel="noopener noreferrer">webutvecklare.se</a>
+        <a href="mailto:nordloferica@gmail.com">nordloferica@gmail.com</a>
+        <a href="https://github.com/EricaNordlof/webbbuilder-studio" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/static/app.js?v=5"></script>
+</body>
+</html>
